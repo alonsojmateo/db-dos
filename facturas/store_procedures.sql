@@ -100,5 +100,26 @@ SELECT
         V.fecha_venta ASC, V.id_venta ASC, P.nombre ASC;
 END
 
-
 -- EXEC sp_ListarVentasXCliente @dni_cliente = '12345678', @fecha_desde = '2025-05-01', @fecha_hasta = '2025-05-31';
+
+-- 5) sp_InsertarVenta. Este stored procedure es el que inserta en la tabla de ventas, los
+-- datos de 1 venta.
+
+SELECT * FROM VENTAS;
+
+CREATE PROCEDURE sp_InsertarVenta
+    @fecha_venta DATE,
+    @dni_cliente varchar(10)
+AS
+BEGIN
+    BEGIN TRY
+        insert into VENTAS (fecha_venta, dni_cliente)
+        values (@fecha_venta, @dni_cliente)
+        select convert(INT,@@IDENTITY) as retorno
+    END TRY
+    BEGIN CATCH
+        PRINT 'Error al insertar venta.';
+    END CATCH
+END
+
+-- EXEC sp_InsertarVenta @fecha_venta = '2025-05-31', @dni_cliente = '12345678'
