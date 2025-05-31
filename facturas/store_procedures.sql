@@ -66,3 +66,39 @@ BEGIN
 end
 
 -- EXEC sp_VerificarStock @id_producto = 2;
+
+-- 4) sp_ListarVentasXCliente. A raíz de un cliente y dos fechas enviadas como valores
+-- parámetro de rango, devuelve un listado de todas las ventas que se encuentra
+-- involucrado esa persona.
+CREATE PROCEDURE sp_ListarVentasXCliente
+    @dni_cliente VARCHAR(10),
+    @fecha_desde DATE,
+    @fecha_hasta DATE
+AS
+BEGIN
+SELECT
+        V.id_venta AS ID_Venta,
+        V.fecha_venta AS FechaVenta,
+        C.apellido AS ApellidoCliente,
+        C.nombre AS NombreCliente,
+        P.nombre AS NombreProducto,
+        DV.cantidad AS CantidadVendida,
+        P.precio_unit AS PrecioUnitario,
+        (DV.cantidad * P.precio_unit) AS SubtotalLinea
+    FROM
+        VENTAS AS V
+    INNER JOIN
+        CLIENTES AS C ON V.dni_cliente = C.dni
+    INNER JOIN
+        DETALLE_VENTAS AS DV ON V.id_venta = DV.id_venta
+    INNER JOIN
+        PRODUCTOS AS P ON DV.id_producto = P.id_producto
+    WHERE
+        V.dni_cliente = @dni_cliente
+        AND V.fecha_venta BETWEEN @fecha_desde AND @fecha_hasta
+    ORDER BY
+        V.fecha_venta ASC, V.id_venta ASC, P.nombre ASC;
+END
+
+
+-- EXEC sp_ListarVentasXCliente @dni_cliente = '12345678', @fecha_desde = '2025-05-01', @fecha_hasta = '2025-05-31';
