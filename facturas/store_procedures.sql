@@ -175,3 +175,44 @@ BEGIN
 END
 
 -- EXEC sp_ActualizaPrecios 10.0;
+
+-- 8) sp_ObtenerProductosPorPais. Lista los productos de un país seleccionado
+CREATE PROCEDURE sp_ObtenerProductosPorPais
+    @pais_imp varchar(50)
+AS
+BEGIN
+    SELECT * FROM PRODUCTOS
+    WHERE pais_imp = @pais_imp;
+END
+SELECT * FROM PRODUCTOS;
+
+-- EXEC sp_ObtenerProductosPorPais 'Alemania'
+
+-- 9) sp_BorrarTelefono. Elimina un teléfono de la tabla de teléfonos (solo si existe más
+-- de 1 teléfono de ese cliente). Sino informar por pantalla que no se puede.
+CREATE PROCEDURE sp_BorrarTelefono
+    @dni_cliente varchar(10),
+    @telefono varchar(20)
+AS
+BEGIN
+    DECLARE @cantidad_telefonos INT;
+
+    BEGIN TRY
+        SELECT COUNT (8) FROM PRODUCTOS
+
+        IF (SELECT COUNT (8) FROM TELEFONOS WHERE dni_cliente = @dni_cliente) < 2
+            begin
+                PRINT 'No tiene sufientes telefonos'
+                return;
+            end
+        ELSE
+            BEGIN
+                DELETE FROM TELEFONOS WHERE numero_telefono = @telefono
+                PRINT 'Se elimino el telefono'
+            END
+    END TRY
+    BEGIN CATCH
+    END CATCH
+END
+
+-- exec sp_BorrarTelefono @dni_cliente = '12345678', @telefono = '1122334455'
