@@ -123,3 +123,41 @@ BEGIN
 END
 
 -- EXEC sp_InsertarVenta @fecha_venta = '2025-05-31', @dni_cliente = '12345678'
+
+-- 6) sp_InsertarDetalle. Es el procedimiento que se ejecuta por cada producto que se
+-- agrega a una venta. Aquí es donde debe existir la validación del stock. Cabe aclarar
+-- que, si el producto se puede vender, habrá que realizar una modificación en la tabla
+-- de productos, cambiando el valor numérico de la cantidad disponible.
+CREATE PROCEDURE sp_InsertarDetalle
+    @id_venta INT,
+    @id_producto INT,
+    @cantidad NUMERIC(5)
+AS
+BEGIN
+    DECLARE @stock_actual INT;
+    BEGIN TRY
+        SELECT @stock_actual = stock
+        FROM PRODUCTOS
+        WHERE id_producto = @id_producto;
+
+        IF @stock_actual - @cantidad < 5
+        BEGIN
+            PRINT 'Falta de stock: El producto no cuenta con stock disponible.';
+            RETURN;
+        END
+
+        INSERT INTO DETALLE_VENTAS (id_venta, id_producto, cantidad)
+        VALUES (@id_venta, @id_producto, @cantidad);
+
+        UPDATE PRODUCTOS
+        SET stock = stock - @cantidad
+        WHERE id_producto = @id_producto;
+
+        PRINT 'Detalle venta generado'
+    END TRY
+    BEGIN CATCH
+        PRINT 'Error al insertar detalle venta.';
+    END CATCH
+END
+
+-- EXEC sp_InsertarDetalle @id_venta = 13, @id_producto = 3, @cantidad = 5
