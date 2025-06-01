@@ -161,3 +161,17 @@ BEGIN
 END
 
 -- EXEC sp_InsertarDetalle @id_venta = 13, @id_producto = 3, @cantidad = 5
+
+-- 7) sp_ActualizaPrecios. Este procedimiento recibe como parámetro un factor de
+-- aumento (por ejemplo 15%) y lo aplica sobre todos los productos.
+CREATE PROCEDURE sp_ActualizaPrecios
+    @porcentaje NUMERIC(5, 2)
+AS
+BEGIN
+    SET @porcentaje = @porcentaje / 100.0;
+    UPDATE PRODUCTOS
+        SET precio_unit = precio_unit * (1 + @porcentaje);
+    PRINT 'Se actualizaron los precios.'
+END
+
+-- EXEC sp_ActualizaPrecios 10.0;
