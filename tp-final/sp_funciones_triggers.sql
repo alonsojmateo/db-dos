@@ -144,3 +144,155 @@ BEGIN
         return ERROR_MESSAGE()
     END CATCH
 END
+
+-- STORE: Crear Ticket
+-- Tengo que pasar datos persona, id_empleado, id_tipologia, id_servicio ya existentes
+CREATE PROCEDURE sp_CrearTicket
+    @tipo_documento VARCHAR(25),
+    @numero_documento NUMERIC(8, 0),
+    @id_tipologia INT,
+    @id_servicio INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @IdPersona INT;
+    BEGIN TRY
+        SELECT @IdPersona = id_persona from Personas
+        WHERE numero_documento = @numero_documento AND tipo_documento = @tipo_documento;
+
+        INSERT INTO Tickets (id_persona, id_servicio, id_tipologia)
+        VALUES (@IdPersona, @id_servicio, @id_tipologia);
+    END TRY
+    begin catch
+        SELECT
+            ERROR_NUMBER() AS ErrorNumber
+            ,ERROR_MESSAGE() AS ErrorMessage;
+        return ERROR_MESSAGE()
+    end catch
+end
+
+CREATE PROCEDURE sp_AsignarTicket
+    @id_ticket INT,
+    @id_empleado INT
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+            UPDATE Tickets SET id_empleado = id_empleado WHERE id_ticket = @id_ticket;
+
+        COMMIT;
+    END TRY
+    begin catch
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        SELECT
+            ERROR_NUMBER() AS ErrorNumber
+            ,ERROR_MESSAGE() AS ErrorMessage;
+        return ERROR_MESSAGE()
+    end catch
+end
+
+CREATE PROCEDURE sp_ActualizarEstadoTicket
+    @id_ticket INT,
+    @estado_nuevo VARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @estado_actual VARCHAR(20);
+
+    BEGIN TRY
+        SELECT @estado_actual = estado FROM Tickets WHERE id_ticket = @id_ticket;
+        IF @estado_actual IS NULL
+        BEGIN
+            RAISERROR('Error: no se encontro ticket "%s"', 16, @id_ticket);
+        END
+
+        IF fn_SePuedeCambiarEstado (@estado_actual, @estado_nuevo) = 0
+        BEGIN
+            RAISERROR('Error: Transición de estado inválida de "%s" a "%s" para el ticket %d. O el nuevo estado no es válido.', 16, 1, @estado_actual, @estado_nuevo, @id_ticket);
+        END
+
+        IF @estado_nuevo = 'Resuelto'
+        BEGIN
+            UPDATE Tickets SET estado = @estado_nuevo AND fecha_resuelto = GETDATE() WHERE id_ticket = @id_ticket;
+        end
+        ELSE IF @estado_nuevo = 'Cerrado'
+        BEGIN
+            UPDATE Tickets SET estado = @estado_nuevo AND fecha_cerrado = GETDATE() WHERE id_ticket = @id_ticket;
+        end
+        ELSE
+        BEGIN
+            UPDATE Tickets SET estado = @estado_nuevo WHERE id_ticket = @id_ticket;
+        END
+    END TRY
+    begin catch
+        SELECT
+            ERROR_NUMBER() AS ErrorNumber
+            ,ERROR_MESSAGE() AS ErrorMessage;
+        return ERROR_MESSAGE()
+    end catch
+
+end
+
+CREATE FUNCTION fn_SePuedeCambiarEstado
+(
+    @estado_actual VARCHAR(20),
+    @estado_nuevo VARCHAR(20)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @es_valida BIT = 0;
+
+    IF @estado_actual = 'Abierto' AND @estado_nuevo = 'En Progreso'
+    BEGIN
+        SET @es_valida = 1;
+    end
+
+    IF @estado_actual = 'En Progreso' AND @estado_nuevo IN ('Pendiente Cliente', 'Resuelto')
+    BEGIN
+        SET @es_valida = 1;
+    end
+
+    IF @estado_actual IN ('Pendiente Cliente', 'Resuelto') AND @estado_nuevo = 'En Progreso'
+    BEGIN
+        SET @es_valida = 1;
+    end
+
+    IF @estado_actual = 'Resuelto' AND @estado_nuevo = 'Cerrado'
+    BEGIN
+        SET @es_valida = 1;
+    end
+
+    RETURN @es_valida;
+END;
+
+CREATE TRIGGER trigger_emails
+ON Tickets
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @id_ticket_nuevo INT;
+    DECLARE @id_persona_nuevo INT;
+    DECLARE @nuevo_estado_val VARCHAR(20);
+    DECLARE @estado_anterior_val VARCHAR(20);
+
+    IF UPDATE(estado)
+    BEGIN
+        SELECT
+            @id_ticket_nuevo = id_ticket,
+            @id_persona_nuevo = id_persona,
+            @nuevo_estado_val = estado
+        FROM
+            inserted;
+
+        SELECT
+            @estado_anterior_val = estado
+        FROM
+            deleted;
+        INSERT INTO EmailsPendientes (id_ticket, id_persona, estado_anterior, nuevo_estado, fecha_registro)
+        VALUES (@id_ticket_nuevo, @id_persona_nuevo, @estado_anterior_val, @nuevo_estado_val, GETDATE());
+    END
+END;

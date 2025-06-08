@@ -94,3 +94,9 @@ EXEC sp_InsertarServicio
 
 EXEC sp_InactivarServicio
     @id_servicio = 11;
+
+/*
+ CASOS: Crear un ticket.
+ */
+select * from Tickets;
+EXEC sp_CrearTicket @tipo_documento = 'DNI', @numero_documento = 12345678, @id_empleado = 1, @id_tipologia = 8, @id_servicio = 9
